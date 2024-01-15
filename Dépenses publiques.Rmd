@@ -1,0 +1,85 @@
+---
+title: "Dépenses publiques"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Introduction
+
+Ce papier étudie les dépenses publiques d'éducation.
+Les sources sont trouvables sur le site de l'office fédéral de la statistique sous [la section Education et science](https://www.bfs.admin.ch/bfs/fr/home/statistiques/education-science.gnpdetail.2023-0303.html).
+
+```{r message=FALSE, warning=FALSE}
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
+```
+
+Nous commencerons par utiliser le fichier excel donné en premier, intitulé Dépenses publiques d'éducation depuis 1990: vue d'ensemble.xslx,
+
+```{r}
+raw_dataset <- read_xlsx("data/Dépenses publiques d'éducation depuis 1990 vue d'ensemble.xlsx", sheet = "je-15.06.01.03")
+```
+Ce papier n'a pas de but autre que de m'entraîner à jouer avec des données.
+
+# Explorer le dataset
+
+La première chose à faire face à un tableau est de l'explorer.
+Il est de bon temps de regarder les premières lignes et les dernières.
+
+```{r}
+head(raw_dataset,10)
+```
+La fonction head() nous permet de voir qu'il y a un premier souci avec les noms de colonnes. En effet, le spreadsheet n'utilise pas la première ligne pour nommer les colonnes, mais la troisième.
+Nous devrons donc faire en sorte d'adapter le spreadsheet pour l'ordinateur tout en ne perdant pas les données écrites pour les utilisateurs humains.
+
+```{r}
+tail(raw_dataset,10)
+```
+La queue du dataset est également intéressante. On voit une ligne, celle de 2021, le reste est du texte pour le référencement.
+
+On va donc procédéer à un nettoyage.
+D'abord, il faut supprimer la ligne 4.
+Ensuite, on renomme les colonnes.
+Enfin, on supprime les dernières lignes
+```{r}
+dataset_propre <- raw_dataset %>%
+  filter(!row_number() %in% c(2)) %>%
+  rename(
+    "Année" = "Dépenses publiques d'éducation depuis 1990: vue d'ensemble",
+    "Suisse" = "...2",
+    "Confédération" = "...3",
+    "Cantons" = "...4",
+    "Communes" = "...5",
+    "Dépenses publiques d'éducation en % du produit intérieur brut" = "...6",
+    "Dépenses publiques d'éducation en % des dépense publiques" = "...7") %>%
+  filter(!row_number() %in% c(1,34,35,36,37,38,39,40,41,42)) %>%
+  select(-"T 15.06.01.03") %>%
+  mutate(across(
+    c(
+      Suisse, 
+      Confédération, 
+      Cantons, 
+      Communes, 
+      `Dépenses publiques d'éducation en % du produit intérieur brut`,
+      `Dépenses publiques d'éducation en % des dépense publiques`
+      ), as.double)) %>%
+  mutate(across(c(
+    Suisse, 
+    Confédération, 
+    Cantons, 
+    Communes, 
+    `Dépenses publiques d'éducation en % du produit intérieur brut`,
+    `Dépenses publiques d'éducation en % des dépense publiques`
+  ), round, 2))
+  
+```
+Petite vérification du dataset.
+```{r}
+glimpse(dataset_propre)
+```
+Avec le glimpse(), nous pouvons constater que nous n'avons plus que des colonnes qui nous intéressent.
+Cependant, nous pouvons également noter que toutes les colonnes ont des données de type "character", alors que nous voudrions qu'uniquement les données de la première colonne, celle des années soit en "character", les autres devraient être en "double", c'est-à-dire des nombre avec des virgules.
